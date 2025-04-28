@@ -9,6 +9,7 @@ base_url = f"https://www.backloggd.com/u/{usuario}/games/?page="
 pagina = 1
 
 todos_los_juegos = []
+urls_existentes = set()
 
 headers = {
     "User-Agent": "Mozilla/5.0"
@@ -29,11 +30,7 @@ while True:
     
     bloques_juegos = soup.find_all('div', class_='rating-hover')
 
-    if not bloques_juegos:
-        print(f"✅ No se encontraron más juegos en página {pagina}. Fin del scraping.")
-        break  # No hay más juegos
-    
-    juegos_encontrados_en_pagina = 0
+    juegos_nuevos_encontrados = 0  # contador de juegos nuevos
 
     for bloque in bloques_juegos:
         try:
@@ -45,24 +42,25 @@ while True:
                 url_juego = "https://www.backloggd.com" + url_relativa
                 nombre_juego = nombre_element.get_text(strip=True)
 
-                todos_los_juegos.append({
-                    "Juego": nombre_juego,
-                    "URL": url_juego
-                })
-                juegos_encontrados_en_pagina += 1
+                if url_juego not in urls_existentes:  # 🚨 solo si es realmente nuevo
+                    todos_los_juegos.append({
+                        "Juego": nombre_juego,
+                        "URL": url_juego
+                    })
+                    urls_existentes.add(url_juego)
+                    juegos_nuevos_encontrados += 1
         except Exception as e:
             print(f"⚠️ Error leyendo un juego: {e}")
 
-    if juegos_encontrados_en_pagina == 0:
-        print(f"✅ Página {pagina} no contiene juegos nuevos. Fin del scraping.")
+    if juegos_nuevos_encontrados == 0:
+        print(f"✅ No se encontraron juegos nuevos en página {pagina}. Fin del scraping.")
         break
 
     pagina += 1
-    time.sleep(1)  # pequeña pausa para no sobrecargar el servidor
+    time.sleep(1)
 
 # --- 3. Guardar en Excel ---
 df = pd.DataFrame(todos_los_juegos)
-df.to_excel("backloggd_juegos_completo.xlsx", index=False)
-
-df.head()
+df.to_excel("backloggd_juegos_completo.xlsx", index=False, engine='openpyxl')
 print(f"✅ ¡Scraping completo! Juegos encontrados: {len(df)}")
+print(df.head())
